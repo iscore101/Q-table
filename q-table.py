@@ -24,16 +24,17 @@ class q_learner:
 
         # Initialize Q-table, first dimension is number of partitions of the interval
         self.Q = np.zeros(num_partitions)
-        for i in range(self.num_operators):
-            # Expanding the array using np.newaxis
-            expanded_Q = self.Q[..., np.newaxis]
+        for j in range(2):
+            for i in range(self.num_operators):
+                # Expanding the array using np.newaxis
+                expanded_Q = self.Q[..., np.newaxis]
     
-            # Creating an array of zeros with the desired shape
-            zeros_shape = expanded_Q.shape + (self.max_parralelism - 1,)
-            zeros_array = np.zeros(zeros_shape)
+                # Creating an array of zeros with the desired shape
+                zeros_shape = expanded_Q.shape + (self.max_parralelism - 1,)
+                zeros_array = np.zeros(zeros_shape)
 
-            #Concatenating the arrays along the new axis
-            self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
+                #Concatenating the arrays along the new axis
+                self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
         #self.Q is now of shape: num_partitions, max_parralelism, max_parralelism.... num_operator times
         #index self.Q as follows: partition #, operator 1 parralelism, operator 2 parralelism... 
 
