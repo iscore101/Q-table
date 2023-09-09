@@ -87,7 +87,7 @@ class q_learner:
             #recursive to get all actions
             for i in self.num_operators:
                 if parralelisms_arr[i] < self.max_parralelism:
-                    new = copy.deepcopy(parralelisms_arr[i])
+                    new = copy.deepcopy(parralelisms_arr)
                     new[i] += 1
                     action(parralelisms_arr) 
         action(starting_arr)
