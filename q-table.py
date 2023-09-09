@@ -60,6 +60,9 @@ class q_learner:
     def generate_action(self,state):
         #generates action given a state, make sure to use find_interval
         #store the state passed in as last_state
+
+        #state format is conisdered to be dict of operator : parralelism
+
         self.last_state = state
         #policy to generate action at every decision point. updates last action and last state. 
 
