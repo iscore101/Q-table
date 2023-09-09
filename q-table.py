@@ -18,9 +18,10 @@ class q_learner:
         self.QOS = QOS_output
     #use find_interval(max_input_rate, num_partitions, input_rate) to find the input rate
     #calculate the number of states (# of rows in the Q table) by taking max_parralelism ^ num_operators * num_partitions
-        self.N = max_parralelism ** num_operators * num_partitions
+        
+        #self.N = max_parralelism ** num_operators * num_partitions
         #the number of actions, A is equal to N (at any state you can go to the N-1 other states or stay)
-        self.A = self.N
+        #self.A = self.N
 
         # Initialize Q-table, first dimension is number of partitions of the interval
         self.Q = np.zeros(num_partitions)
@@ -35,8 +36,8 @@ class q_learner:
 
                 #Concatenating the arrays along the new axis
                 self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
-        #self.Q is now of shape: num_partitions, max_parralelism, max_parralelism.... num_operator times
-        #index self.Q as follows: partition #, operator 1 parralelism, operator 2 parralelism... 
+        #self.Q is now of shape: num_partitions, max_parralelism, max_parralelism.... num_operator times, max_parallelism.... num_operator times
+        #index self.Q as follows: partition #, operator 1 parralelism, operator 2 parralelism... action op1 parralelism, action op2 parralelism...
 
     def find_interval(self,max_input_rate, num_partitions, input_rate):
         #use find_interval outside this method when passing in states.        
@@ -54,13 +55,6 @@ class q_learner:
         #returns (rate_interval, action's parralelism)
         return (state[0], action)
     
-    #called during update_q_table
-    def p_arr_to_index(self,parralelisms_arr):
-        Q_index = (self.num_partitions)
-        for i in range(self.num_operators):
-            Q_index + (parralelisms_arr[i],)
-        return Q_index
-        #create the Q index by adding the i-th parralelism level
 
     
     def generate_action(self,state):
@@ -71,15 +65,17 @@ class q_learner:
 
         #ACTION SELECTION: DS2!
 
-        #Loop through all possible states. Pass into DS2
-        maxed_out = False
+        #Loop through all possible actions to take. Pass into DS2
+
         starting_arr = [0] * len(self.num_operators)
         self.ret_action = None
         self.best_reward = float('-inf')
+        state_arr = [state[1][i] for i in range(len(state[1]))]
+        state_interval = [self.find_interval(self.max_input_rate, self.num_partitions, state[0])]
         
         def action(parralelisms_arr):
             action = {i:parralelisms_arr[i] for i in range(self.parralelisms_arr)}
-            Q_index = self.p_arr_to_index(parralelisms_arr)
+            Q_index = tuple(state_interval + state_arr + parralelisms_arr)
 
             #call to DS2
             if self.QOS <= modified_DS2(state, action):
