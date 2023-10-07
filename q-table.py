@@ -24,6 +24,7 @@ class q_learner:
         #self.A = self.N
 
         # Initialize Q-table, first dimension is number of partitions of the interval
+
         self.Q = np.zeros(num_partitions)
         for j in range(2):
             for i in range(self.num_operators):
