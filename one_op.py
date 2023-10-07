@@ -89,6 +89,33 @@ class q_learner:
             if i * interval_length > value:
                 return i #value is in the i-th interval
         return "error; value > max_value"
+    
+    def partition_to_value(self, max_value, num_partitions, partition):
+        interval_length = max_value/num_partitions
+        return (partition + 0.5) * interval_length
+
+    def partitions_to_values(self, input_array):
+        curr_ind = 0
+        state_action = copy.deepcopy(input_array)
+        state_action[0] = self.partition_to_value(self.max_input_rate,self.num_partitions_input,state_action[0])
+
+        #parralelism is good, so skip to curr_ind + num_operators
+        curr_ind += self.num_operators
+        #selectivity
+        for i in range(self.num_operators):
+            curr_ind += 1
+            partition = state_action[curr_ind]
+            state_action[curr_ind] = self.partition_to_value(self.max_selectivity_rate, self.num_partitions_selectivity, partition)
+        
+        #processing rate
+        for i in range(self.num_operators):
+            curr_ind += 1
+            partition = state_action[curr_ind]
+            state_action[curr_ind] = self.partition_to_value(self.max_processing_rate, self.num_partitions_processing, partition)
+        #action parralelism is already a value
+
+        return state_action
+
 
     def populate_q_table_offline(self,state):
         #generates action given a state, make sure to use find_interval
@@ -106,7 +133,9 @@ class q_learner:
                     recursive_looper(next_indexing, curr_loop + 1)
                 else:
                     #reached last action loop, update q value.
-                    reward = modifiedDS2(next_indexing)
+
+                    #pass state with action's parralelism
+                    reward = modifiedDS2(self.partitions_to_values(next_indexing))
                     #the last num_operators are action parralelism
 
                     #do something to reward??
