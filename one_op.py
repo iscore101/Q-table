@@ -192,6 +192,8 @@ class q_learner:
         #sends the action to the streaming system, which then comes back with the reward.
         execute_action(action)
 
+    #UNPACKS, ACTIONS NEED TO BE TESTED
+
     #call this after action is executed and reward is collected
     #MAKE SURE TO CALL THIS IN BETWEEN CALLS TO online_generate_action
     def online_update_q_table(self, reward):
