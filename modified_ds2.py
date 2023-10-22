@@ -83,25 +83,26 @@ class DirectedGraph:
             print(f"{key}: {value}")
 
     def compute_output_rates_in_q_table(self, param_list):
-        print(param_list)
-        size = len(param_list)
-        param_num = (size - 1) // 3
-        print(param_num)
-        
+        param_num = len(self.vertices)
+        # print(param_list)
+        # print(param_num)
+
         self.input_rate = param_list[0]
+
+        # print("sorted verts:", self.sorted_vertices)
 
         for i in range(param_num):
             self.vertices[self.sorted_vertices[i]].selectivity = param_list[1+i]
             self.vertices[self.sorted_vertices[i]].processing_rate = param_list[1+i+param_num]
             self.vertices[self.sorted_vertices[i]].parallelism = param_list[1+i+param_num*2]
-        
+
         output_rates2 = graph2.compute_output_rates()
         sink_input_rate2 = graph2.get_sink_input_rate(output_rates2)
 
         return sink_input_rate2
 
 
-        
+
 # Example Graphs and Calculations
 graph1 = DirectedGraph(1000)
 graph2 = DirectedGraph(2000)
