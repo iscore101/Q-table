@@ -24,6 +24,6 @@ graph2.add_edge(C2, B2)
 
 graph2.sort_vertices()
 
-q_learn = q_learner(3, 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph2)
+q_learn = q_learner(len(graph2.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph2) # len(graph2.vertices()) = 3
 q_learn.populate_q_table_offline()
 print(q_learn.Q)
