@@ -84,17 +84,19 @@ class DirectedGraph:
 
     def compute_output_rates_in_q_table(self, param_list):
         param_num = len(self.vertices)
+        print(param_list)
+        # print(param_num)
 
         self.input_rate = param_list[0]
 
         for i in range(param_num):
-            self.vertices[self.sorted_vertices[i]].selectivity = param_list[1+i]
-            self.vertices[self.sorted_vertices[i]].processing_rate = param_list[1+i+param_num]
-            self.vertices[self.sorted_vertices[i]].parallelism = param_list[1+i+param_num*2]
+            self.vertices[self.sorted_vertices[i]].parallelism = param_list[1+i]
+            self.vertices[self.sorted_vertices[i]].selectivity = param_list[1+i+param_num]
+            self.vertices[self.sorted_vertices[i]].processing_rate = param_list[1+i+param_num*2]
 
         output_rates2 = self.compute_output_rates()
         sink_input_rate2 = self.get_sink_input_rate(output_rates2)
-
+        print(sink_input_rate2)
         return sink_input_rate2
 
 '''
@@ -102,49 +104,73 @@ class DirectedGraph:
 graph1 = DirectedGraph(1000)
 graph2 = DirectedGraph(2000)
 graph3 = DirectedGraph(3000)
+=======
+            vertex = self.vertices[self.sorted_vertices[i]]
+
+            print(f"Vertex {self.sorted_vertices[i]}:")
+            print(f"  Selectivity: {vertex.selectivity}")
+            print(f"  Processing Rate: {vertex.processing_rate}")
+            print(f"  Parallelism: {vertex.parallelism}")
+            
+        output_rates2 = self.compute_output_rates()
+        sink_input_rate2 = self.get_sink_input_rate(output_rates2)
+
+        print(sink_input_rate2)
+
+        return sink_input_rate2
 
 
 
-# Example 1
-# Source -> A -> B -> Sink
-A1 = Vertex("A", 500, 0.5, 2)
-B1 = Vertex("B", 300, 0.5, 3)
-graph1.add_vertex(A1)
-graph1.add_vertex(B1)
-graph1.set_source(A1)
-graph1.set_sink(B1)
-graph1.add_edge(A1, B1)
+# # Example Graphs and Calculations
+# graph1 = DirectedGraph(1000)
+# graph2 = DirectedGraph(2000)
+# graph3 = DirectedGraph(3000)
+>>>>>>> Stashed changes
 
-# graph1.sort_vertices()
-# graph1.compute_output_rates_in_q_table([1, 1, 1,1,1,1,1,1,1,1])
 
-# Example 2
-#      A
-#    /   \
-# Source   B -> Sink
-#    \   /
-#      C
-A2 = Vertex("A", 700, 2)
-B2 = Vertex("B", 400, 5)
-C2 = Vertex("C", 350, 4)
-graph2.add_vertex(A2)
-graph2.add_vertex(B2)
-graph2.add_vertex(C2)
-graph2.set_source(A2)
-graph2.set_sink(B2)
-graph2.add_edge(A2, B2)
-graph2.add_edge(A2, C2)
-graph2.add_edge(C2, B2)
 
-output_rates1 = graph1.compute_output_rates()
-sink_input_rate1 = graph1.get_sink_input_rate(output_rates1)
+# # Example 1
+# # Source -> A -> B -> Sink
+# A1 = Vertex("A", 500, 0.5, 2)
+# B1 = Vertex("B", 300, 0.5, 3)
+# graph1.add_vertex(A1)
+# graph1.add_vertex(B1)
+# graph1.set_source(A1)
+# graph1.set_sink(B1)
+# graph1.add_edge(A1, B1)
 
-output_rates2 = graph2.compute_output_rates()
-sink_input_rate2 = graph2.get_sink_input_rate(output_rates2)
+# # graph1.sort_vertices()
+# # graph1.compute_output_rates_in_q_table([1, 1, 1,1,1,1,1,1,1,1])
 
-# output_rates3 = graph3.compute_output_rates()
-# sink_input_rate3 = graph3.get_sink_input_rate(output_rates3)
+# # Example 2
+# #      A
+# #    /   \
+# # Source   B -> Sink
+# #    \   /
+# #      C
+# A2 = Vertex("A", 700, 2)
+# B2 = Vertex("B", 400, 5)
+# C2 = Vertex("C", 350, 4)
+# graph2.add_vertex(A2)
+# graph2.add_vertex(B2)
+# graph2.add_vertex(C2)
+# graph2.set_source(A2)
+# graph2.set_sink(B2)
+# graph2.add_edge(A2, B2)
+# graph2.add_edge(A2, C2)
+# graph2.add_edge(C2, B2)
+
+# output_rates1 = graph1.compute_output_rates()
+# sink_input_rate1 = graph1.get_sink_input_rate(output_rates1)
+
+# output_rates2 = graph2.compute_output_rates()
+# sink_input_rate2 = graph2.get_sink_input_rate(output_rates2)
+
+# # output_rates3 = graph3.compute_output_rates()
+# # sink_input_rate3 = graph3.get_sink_input_rate(output_rates3)
 
 # print("Example 1 sink input rate:", sink_input_rate1)
+<<<<<<< Updated upstream
 # print("Example 2 sink input rate:", sink_input_rate2)
 '''
+# print("Example 2 sink input rate:", sink_input_rate2)
