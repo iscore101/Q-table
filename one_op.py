@@ -32,9 +32,9 @@ class q_learner:
         #use find_interval(max_input_rate, num_partitions, input_rate) to find the partition number to index
         #the max values inputted must be divisible by the num_partitions
 
-
         # Initialize Q-table, with these dimensions:
-        #(input_partitions, parralelism * num_operators, selectivity * num_operators, processing_rate * num_operators, action_parralelism * num_operators)
+        #(input_partitions, parralelism * num_operators, selectivity * num_operators,
+        # processing_rate * num_operators, action_parralelism * num_operators)
         q_tuple = [self.num_partitions_input]
         for i in range(num_operators):
             q_tuple.append(self.max_parralelism)
@@ -48,61 +48,6 @@ class q_learner:
         q_tuple = tuple(q_tuple)
 
         self.Q = np.zeros(q_tuple)
-
-        # print("q shape", self.Q.shape)
-        #     #maps dimension (index) to its max
-        # #add parralelism, selectivity, processing_rate, action_parralelism which depends on num_operators
-        # for i in range(self.num_operators):
-        #     #parralelism
-        #     # Expanding the array using np.newaxis
-        #     expanded_Q = self.Q[..., np.newaxis]
-
-        #     # Creating an array of zeros with the desired shape
-        #     zeros_shape = expanded_Q.shape + (self.max_parralelism,)
-        #     zeros_array = np.zeros(zeros_shape)
-
-        #     expanded_Q = expanded_Q[:, np.newaxis]
-        #     expanded_Q = np.broadcast_to(expanded_Q, zeros_shape)
-
-        #     print("expanded shape", expanded_Q.shape, "zeros shape", zeros_array.shape)
-
-        #     #Concatenating the arrays along the new axis
-        #     # self.Q = np.hstack((expanded_Q, zeros_array))
-        #     print("selfQ", self.Q.shape)
-        #     self.dimension_to_max.append(self.max_parralelism)
-        # for i in range(self.num_operators):
-        #     #selectivity_rate
-        #     expanded_Q = self.Q[..., np.newaxis]
-
-        #     # Creating an array of zeros with the desired shape
-        #     zeros_shape = expanded_Q.shape + (self.max_selectivity_rate - 1,)
-        #     zeros_array = np.zeros(zeros_shape)
-
-        #     #Concatenating the arrays along the new axis
-        #     self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
-        #     self.dimension_to_max.append(self.max_selectivity_rate)
-        # for i in range(self.num_operators):
-        #     #processing_rate
-        #     expanded_Q = self.Q[..., np.newaxis]
-
-        #     # Creating an array of zeros with the desired shape
-        #     zeros_shape = expanded_Q.shape + (self.max_processing_rate - 1,)
-        #     zeros_array = np.zeros(zeros_shape)
-
-        #     #Concatenating the arrays along the new axis
-        #     self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
-        #     self.dimension_to_max.append(self.max_processing_rate)
-        # for i in range(self.num_operators):
-        #     #action_parralelism
-        #     expanded_Q = self.Q[..., np.newaxis]
-
-        #     # Creating an array of zeros with the desired shape
-        #     zeros_shape = expanded_Q.shape + (self.max_parralelism - 1,)
-        #     zeros_array = np.zeros(zeros_shape)
-
-        #     #Concatenating the arrays along the new axis
-        #     self.Q = np.concatenate([expanded_Q, zeros_array], axis=-1)
-        #     self.dimension_to_max.append(self.max_parralelism)
 
 
     def find_interval(self,max_value, num_partitions, value):
@@ -174,7 +119,6 @@ class q_learner:
         self.Q[*indexing] = set_value
 
 
-
     #given an action and curent state, find the next state
     def get_next_state(self,state, action):
         #assume input metrics stay the same, we are not forecasting them. change the parralelism to the action's
@@ -187,16 +131,12 @@ class q_learner:
         #change this accordingly to how many metrics
 
 
-
     def online_generate_action(self,state):
-        #we seperate state and action (unline with indexing during offline)
+        #we seperate state and action (unlike with indexing during offline)
 
         # Epsilon-greedy action selection
-        action = []
         if random.uniform(0, 1) < self.epsilon:
-            for i in range(self.num_operators):
-                action.append(random.randint(0, self.max_parralelism))
-                #random parralelisms
+            action = {vertex: random.randint(0, self.max_parralelism) for vertex in self.graph.vertices} #random parralelisms
         else:
             #index by state, then argmax on the subarray
             subarray = self.Q[tuple(state) + (Ellipsis,)]
@@ -204,17 +144,17 @@ class q_learner:
 
             # Convert the flattened index to multi-dimensional indices
             remaining_dim_indices = np.unravel_index(flattened_index, subarray.shape)
-            action = list(remaining_dim_indices)
+            action = {vertex: parallelism for vertex, parallelism in zip(self.graph.vertices, remaining_dim_indices)}
 
 
         # Get the next state and reward
         self.state = state
         self.next_state = self.get_next_state(state, action)
         #sends the action to the streaming system, which then comes back with the reward.
-        execute_action(action)
+        return action
+
 
     #UNPACKS, ACTIONS NEED TO BE TESTED
-
     #call this after action is executed and reward is collected
     #MAKE SURE TO CALL THIS IN BETWEEN CALLS TO online_generate_action
     def online_update_q_table(self, reward):
@@ -229,4 +169,4 @@ class q_learner:
         self.set_q_table(self.state + self.last_action, value)
         return self.Q
 
-    #TO FIX: indexing whenever we update the q table (we need to be able to index by state, action pair), or call np.argmax
+    #TODO: indexing whenever we update the q table (we need to be able to index by state, action pair), or call np.argmax
