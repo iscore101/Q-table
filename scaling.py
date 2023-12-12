@@ -88,6 +88,8 @@ if __name__ == "__main__":
     graph = build_graph(initial_metrics)
     q_learner = q_learner(...)
 
+    q_learner.populate_q_table_offline()
+
     previous_json_data = None  # Track the previous value of json_data
 
     # probably better ways of doing this
