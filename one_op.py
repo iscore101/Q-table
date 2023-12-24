@@ -84,6 +84,9 @@ class q_learner:
 
         return state_action
 
+    def value_to_partition(self, num_partitions, max_value, value):
+        partition_size = max_value / num_partitions
+        return value // partition_size
 
     def populate_q_table_offline(self):
         #we call recursive looper if we need another nested loop
@@ -115,8 +118,8 @@ class q_learner:
 
         return self.Q
 
-    def set_q_table(self, indexing, set_value):
-        self.Q[*indexing] = set_value
+    # def set_q_table(self, indexing, set_value):
+    #     self.Q[*indexing] = set_value
 
 
     #given an action and curent state, find the next state
@@ -133,10 +136,14 @@ class q_learner:
 
     def online_generate_action(self,state):
         #we seperate state and action (unlike with indexing during offline)
+        state[0] = self.value_to_partition(self.num_partitions_input, self.max_input_rate, state[0])
+        for i in range(self.num_operators):
+            state[1 + 2 * i] = self.value_to_partition(self.num_partitions_selectivity, self.max_selectivity_rate, state[1 + 2 * i])
+            state[1 + 3 * i] = self.value_to_partition(self.num_partitions_processing, self.max_processing_rate, state[1 + 3 * i])
 
         # Epsilon-greedy action selection
         if random.uniform(0, 1) < self.epsilon:
-            action = {vertex: random.randint(0, self.max_parralelism) for vertex in self.graph.vertices} #random parralelisms
+            action = [random.randint(0, self.max_parralelism) for _ in range(self.num_operators)]
         else:
             #index by state, then argmax on the subarray
             subarray = self.Q[tuple(state) + (Ellipsis,)]
@@ -144,8 +151,7 @@ class q_learner:
 
             # Convert the flattened index to multi-dimensional indices
             remaining_dim_indices = np.unravel_index(flattened_index, subarray.shape)
-            action = {vertex: parallelism for vertex, parallelism in zip(self.graph.vertices, remaining_dim_indices)}
-
+            action = remaining_dim_indices.tolist()
 
         # Get the next state and reward
         self.state = state
@@ -161,10 +167,11 @@ class q_learner:
         #we index here by doing *(state+action)
 
         #this line should index by the state, then take max over the rest of the dimensions (the action dimensions)
-
         best_next_action_value = np.max(self.Q[(*self.next_state, ...)])
         #maybe this needs to be edited to make it explicitly a tuple of unpack + ...
 
+        # td_error = reward + self.gamma * best_next_action_value - self.Q[*(self.state + self.last_action)]
+        # self.Q[*(self.state + self.last_action)] += self.alpha * td_error
         value = (1 - self.alpha) * self.Q[*(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
         self.set_q_table(self.state + self.last_action, value)
         return self.Q
