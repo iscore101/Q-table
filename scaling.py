@@ -51,14 +51,14 @@ def parse_json_and_extract_parallelism(json_data):
         # Extract parallelisms
         parallelisms = data['jobTopology']['parallelisms']
 
-        # Create a hashmap to store vertex ID and parallelism
-        parallelism_hashmap = {}
+        # # Create a hashmap to store vertex ID and parallelism
+        # parallelism_hashmap = {}
 
-        # Iterate over vertices and extract vertex ID and parallelism
-        for vertex_id, parallelism in parallelisms.items():
-            parallelism_hashmap[vertex_id] = parallelism
+        # # Iterate over vertices and extract vertex ID and parallelism
+        # for vertex_id, parallelism in parallelisms.items():
+        #     parallelism_hashmap[vertex_id] = parallelism
 
-        return parallelism_hashmap
+        return parallelisms
 
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
@@ -67,12 +67,11 @@ def parse_json_and_extract_parallelism(json_data):
     except Exception as e:
         print(f"Error: {e}")
 
-def parse_json_and_extract_latest_metrics(json_data, index_to_name_dict, name_to_index_dict):
+def parse_json_and_extract_latest_metrics(json_data, index_to_id_dict):
     ''' index json_data["metricHistory"] for
     processing_rate, parallelism, selectivity.
-    state:
-    (input_partitions, parralelism * num_operators, selectivity * num_operators,
-    processing_rate * num_operators, action_parralelism * num_operators) '''
+    state: (input_partitions, parralelism * num_operators,
+        selectivity * num_operators, processing_rate * num_operators) '''
     try:
         # Parse the JSON data
         data = json.loads(json_data)
@@ -81,27 +80,32 @@ def parse_json_and_extract_latest_metrics(json_data, index_to_name_dict, name_to
         if 'metricHistory' not in data or 'parallelisms' not in data['jobTopology']:
             raise ValueError("Invalid JSON format. Missing 'jobTopology' or 'parallelisms'.")
 
-
         all_metrics = json_data['metricHistory']
         latest_timestamp = max(all_metrics.keys())
         latest_metrics = all_metrics[latest_timestamp]
-        num_ops = len(latest_metrics)
-        state = np.zeros(1 + (3 * num_ops))
-        for i in range(num_ops):
-            vertex_name = index_to_name_dict[i]
-            vertex_metrics = latest_metrics[vertex_name]
-            if 'SOURCE_DATA_RATE' in vertex_metrics: # source op
-                vertex_input_rate = vertex_metrics['SOURCE_DATA_RATE']
-                if vertex_input_rate == 'NaN':
-                    state[0] = 0
-                else:
-                    state[0] = vertex_input_rate
 
-            vertex_processing_rate, vertex_output_rate = vertex_metrics['CURRENT_PROCESSING_RATE'], vertex_metrics['CURRENT_PROCESSING_RATE']
-            vertex_parallelism = parse_json_and_extract_parallelism(json_data)[vertex_name]
-            state[1 + i] = vertex_parallelism
-            state[1 + 2 * i] = vertex_output_rate / vertex_processing_rate
-            state[1 + 3 * i] = vertex_processing_rate
+        state = np.zeros(1 + (3 * num_ops))
+        num_ops = len(latest_metrics)
+        for i in range(num_ops):
+            vertex_id = index_to_id_dict[i]
+            vertex_metrics = latest_metrics[vertex_id]
+
+            # if 'SOURCE_DATA_RATE' in vertex_metrics: # source op
+            #     vertex_input_rate = vertex_metrics['SOURCE_DATA_RATE']
+            #     if vertex_input_rate == 'NaN':
+            #         state[0] = 0
+            #     else:
+            #         state[0] = vertex_input_rate
+
+            vertex_input_rate = vertex_metrics['NUM_RECORDS_IN_PER_SECOND']
+            vertex_parallelism = parse_json_and_extract_parallelism(json_data)[vertex_id]
+            vertex_output_rate = vertex_metrics['CURRENT_PROCESSING_RATE']
+            vertex_processing_rate = vertex_metrics['CURRENT_PROCESSING_RATE']
+
+            state[0] = vertex_input_rate # weird indexing bc one_op(?)
+            state[i + 1] = vertex_parallelism
+            state[2 * (i + 1)] = vertex_output_rate / vertex_processing_rate
+            state[3 * (i + 1)] = vertex_processing_rate
 
         return state
 
@@ -120,13 +124,13 @@ def build_graph(metrics):
 #     ...
 
 if __name__ == "__main__":
-    graph = build_graph(...) # need dict of vertices somehow {name : }
+    graph = build_graph(...) # need dict of vertices somehow {id : }
     q_learner = q_learner(...)
     q_learner.populate_q_table_offline()
 
-    name_to_index_dict = {}
-    index_to_name_dict = {}
-    # TODO: POPULATE THIS (from graph?)
+    # TODO: populate these (from graph?)
+    id_to_index_dict = {}
+    index_to_id_dict = {}
 
     json_data = None
     app.run(host='0.0.0.0', port=5001)
@@ -138,10 +142,10 @@ if __name__ == "__main__":
         # Check if json_data has changed from None to containing data
         if json_data is not None and json_data != previous_json_data:
 
-            state = parse_json_and_extract_latest_metrics(json_data)
+            state = parse_json_and_extract_latest_metrics(json_data, index_to_id_dict)
             actions = q_learner.online_generate_action(state)
-            action_dict = {index_to_name_dict[vert_ind]: action for vert_ind, action in enumerate(actions)}
-            reward = ... # TODO: get reward
+            action_dict = {index_to_id_dict[vert_ind]: action for vert_ind, action in enumerate(actions)}
+            reward = state[0] # assumes sink is last in index_to_id_dict (one_op)
             q_learner.online_update_q_table(reward)
             # update_vertices(graph, latest_metrics)
 
