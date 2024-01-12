@@ -138,8 +138,8 @@ class q_learner:
         #we seperate state and action (unlike with indexing during offline)
         state[0] = self.value_to_partition(self.num_partitions_input, self.max_input_rate, state[0])
         for i in range(self.num_operators):
-            state[1 + 2 * i] = self.value_to_partition(self.num_partitions_selectivity, self.max_selectivity_rate, state[1 + 2 * i])
-            state[1 + 3 * i] = self.value_to_partition(self.num_partitions_processing, self.max_processing_rate, state[1 + 3 * i])
+            state[2 * (i + 1)] = self.value_to_partition(self.num_partitions_selectivity, self.max_selectivity_rate, state[2 * (i + 1)])
+            state[3 * (i + 1)] = self.value_to_partition(self.num_partitions_processing, self.max_processing_rate, state[3 * (i + 1)])
 
         # Epsilon-greedy action selection
         if random.uniform(0, 1) < self.epsilon:
