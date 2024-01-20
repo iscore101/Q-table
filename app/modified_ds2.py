@@ -54,9 +54,9 @@ class DirectedGraph:
             stack.append(vertex)
 
         dfs(self.source)
-        sorted_keys = [vertex.name for vertex in stack[::-1]]
-        self.sorted_vertices = {index: key for index, key in enumerate(sorted_keys)}
-        return sorted_keys
+        sorted_vertices = [vertex for vertex in stack[::-1]]
+        self.sorted_vertices = {index: vertex.name for index, vertex in enumerate(sorted_vertices)}
+        return sorted_vertices
 
     def compute_output_rates(self):
         if not self.source:

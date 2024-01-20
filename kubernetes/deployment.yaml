@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: scaling-service
+spec:
+  selector:
+    app: scaling
+  ports:
+  - protocol: "TCP"
+    port: 6000
+    targetPort: 5000
+  type: LoadBalancer
+
+
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: scaling
+spec:
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: scaling
+    spec:
+      containers:
+      - name: scaling
+        image: scaling:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
