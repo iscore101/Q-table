@@ -54,7 +54,9 @@ class DirectedGraph:
             stack.append(vertex)
 
         dfs(self.source)
-        return stack[::-1]
+        sorted_vertices = [vertex for vertex in stack[::-1]]
+        self.sorted_vertices = {index: vertex.name for index, vertex in enumerate(sorted_vertices)}
+        return sorted_vertices
 
     def compute_output_rates(self):
         if not self.source:
@@ -74,13 +76,13 @@ class DirectedGraph:
             raise ValueError("Sink node is not set. Cannot compute its input rate.")
         return output_rates.get(self.sink.name, None)
 
-    def sort_vertices(self):
-        # Get the sorted keys
-        sorted_keys = sorted(self.vertices.keys())
-        # Create a new map that maps each key to its index (order)
-        self.sorted_vertices = {index: key for index, key in enumerate(sorted_keys)}
-        for key, value in self.sorted_vertices.items():
-            print(f"{key}: {value}")
+    # def sort_vertices(self):
+    #     # Get the sorted keys
+    #     sorted_keys = sorted(self.vertices.keys())
+    #     # Create a new map that maps each key to its index (order)
+    #     self.sorted_vertices = {index: key for index, key in enumerate(sorted_keys)}
+    #     for key, value in self.sorted_vertices.items():
+    #         print(f"{key}: {value}")
 
     def compute_output_rates_in_q_table(self, param_list):
         param_num = len(self.vertices)
