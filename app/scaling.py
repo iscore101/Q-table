@@ -9,17 +9,41 @@ import base64
 
 app = Flask(__name__)
 
-@app.route('/', methods=['POST'])
-def update_json_data():
-    global json_data
+# @app.route('/', methods=['POST', 'GET'])
+@app.route('/metrics', methods=['POST']) 
+#def update_json_data():
+def receive_metrics():
+    global json_data, graph
+    print("===> receive_metrics is called")
     data = request.data.decode('utf-8')
     json_data = data
-    print(f'json_data: {json_data}')
+    print(f'===> json_data: {json_data}')
+
+    if json_data is not None:
+        print("===> before graph in main")
+        graph = build_graph(json_data)
+        q_learner_instance = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
+        q_learner_instance.populate_q_table_offline()
     return f'json_data: {json_data}'
 
-@app.route('/', methods=['GET'])
-def send_action():
+# @app.route('/', methods=['GET'])
+@app.route('/parallelisms', methods=['GET'])
+#def send_action():
+def get_parallelism():
     global action
+    previous_json_data = None
+    print("===> get_parallelism is called")
+    if json_data != previous_json_data:
+        print("===> Will compute new action")
+        state = get_latest_metrics(json_data, graph.sorted_vertices)
+        actions = q_learner.online_generate_action(state)
+        action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
+        action = action_dict # update global variable for get requesst
+        reward = get_reward(graph.sink.name)
+        q_learner.online_update_q_table(reward)
+
+        previous_json_data = json_data # Reset previous_json_data after processing 
+
     if action is not None:
         print(f'action: {action}')
         return f'action: {action}'
@@ -133,29 +157,40 @@ def build_graph(json_data):
         print(f'Error: {e}')
 
 if __name__ == '__main__':
-    
+    print("===> starting main")
     json_data = None
     action = None
     app.run(host='0.0.0.0', port=5001)
 
-    while json_data is None:
-        # Add a delay to avoid continuous checking
-        time.sleep(0.25)
+    # while json_data is None:
+    #     # Add a delay to avoid continuous checking
+    #     time.sleep(0.25)
+    # print("===> before graph in main")
+    # graph = build_graph(json_data)
+    # q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
+    # q_learner.populate_q_table_offline()
 
-    graph = build_graph(json_data)
-    q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
-    q_learner.populate_q_table_offline()
+    # previous_json_data = None
+    # # while True:
+    # #     if json_data != previous_json_data:
+    # #         print("===> Will compute new action")
+    # #         state = get_latest_metrics(json_data, graph.sorted_vertices)
+    # #         actions = q_learner.online_generate_action(state)
+    # #         action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
+    # #         action = action_dict # update global variable for get requesst
+    # #         reward = get_reward(graph.sink.name)
+    # #         q_learner.online_update_q_table(reward)
 
-    previous_json_data = None
-    while True:
-        if json_data != previous_json_data:
-            state = get_latest_metrics(json_data, graph.sorted_vertices)
-            actions = q_learner.online_generate_action(state)
-            action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
-            action = action_dict # update global variable for get requesst
-            reward = get_reward(graph.sink.name)
-            q_learner.online_update_q_table(reward)
+    # #         previous_json_data = json_data # Reset previous_json_data after processing
 
-            previous_json_data = json_data # Reset previous_json_data after processing
+    # #     time.sleep(0.25) 
+    # if json_data != previous_json_data:
+    #     print("===> Will compute new action")
+    #     state = get_latest_metrics(json_data, graph.sorted_vertices)
+    #     actions = q_learner.online_generate_action(state)
+    #     action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
+    #     action = action_dict # update global variable for get requesst
+    #     reward = get_reward(graph.sink.name)
+    #     q_learner.online_update_q_table(reward)
 
-        time.sleep(0.25) 
+    #     previous_json_data = json_data # Reset previous_json_data after processing 
