@@ -172,7 +172,10 @@ class q_learner:
 
         # td_error = reward + self.gamma * best_next_action_value - self.Q[*(self.state + self.last_action)]
         # self.Q[*(self.state + self.last_action)] += self.alpha * td_error
-        value = (1 - self.alpha) * self.Q[*(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
+        # value = (1 - self.alpha) * self.Q[*(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
+        value = (1 - self.alpha) * self.Q[tuple(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
+
+
         self.set_q_table(self.state + self.last_action, value)
         return self.Q
 

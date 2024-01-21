@@ -8,17 +8,23 @@ spec:
   ports:
   - protocol: "TCP"
     port: 6000
-    targetPort: 5000
-  type: LoadBalancer
+    targetPort: 5001
+    # targetPort: 5000
+  # type: LoadBalancer
+  type: NodePort
 
 
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
+# apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: scaling
 spec:
-  replicas: 4
+  selector:
+    matchLabels:
+      app: scaling
+  replicas: 1
   template:
     metadata:
       labels:
@@ -26,7 +32,10 @@ spec:
     spec:
       containers:
       - name: scaling
-        image: scaling:latest
-        imagePullPolicy: Never
+        # image: scaling:latest
+        image: public.ecr.aws/m5r4d3y5/flink-jobs:q-table-jan21-v15
+        # imagePullPolicy: Never
+        imagePullPolicy: Always
         ports:
-        - containerPort: 5000
+        # - containerPort: 5000
+        - containerPort: 5001

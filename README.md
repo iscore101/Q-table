@@ -17,3 +17,7 @@ The Q-table repo is modeled after the hello-python example, so theoretically it 
 It may be necessary to change the arguments of `scaling.py` line 145, the construction of the q_learner, with the appropriate values as defined in `one_op.py`.
 
 I believe it would be best to run it on simple examples, e.g. source $\to$ sink, because the code is mostly for now designed for single source/sink and is largely untested.
+
+# How to run and how to stop
+kubectl apply -f path of deployment.yaml
+kubectl delete -f path of deployment.yaml
