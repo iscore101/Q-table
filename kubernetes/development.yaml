@@ -32,10 +32,10 @@ spec:
     spec:
       containers:
       - name: scaling
-        # image: scaling:latest
-        image: public.ecr.aws/m5r4d3y5/flink-jobs:q-table-jan21-v15
-        # imagePullPolicy: Never
-        imagePullPolicy: Always
+        image: scaling:v16.6
+        # image: public.ecr.aws/m5r4d3y5/flink-jobs:q-table-jan21-v15
+        imagePullPolicy: Never
+        # imagePullPolicy: Always
         ports:
         # - containerPort: 5000
         - containerPort: 5001

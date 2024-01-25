@@ -15,14 +15,14 @@ def receive_metrics():
     global json_data, graph, _q_learner
     print("===> receive_metrics is called")
 
-    if json_data is None:
+    json_data = request.data.decode('utf-8')
+
+    if graph is None and json_data is not None:
         print("===> first-time init")
-        json_data = request.data.decode('utf-8')
         graph = build_graph(json_data)
+        print(f"===> graph `{graph}` built")
         _q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
         _q_learner.populate_q_table_offline()
-    else:
-        json_data = request.data.decode('utf-8') # update global var with metrics
 
     print(f'===> json_data: {json_data}')
     return f'json_data: {json_data}'
@@ -34,7 +34,7 @@ def get_parallelism():
     global json_data, last_json_data, graph, _q_learner
     print("===> get_parallelism is called")
 
-    if json_data != last_json_data:
+    if json_data != last_json_data and not (json_data is None or graph is None):
         print("===> Will compute new action")
         state = get_latest_metrics(json_data, graph.sorted_vertices)
         actions = _q_learner.online_generate_action(state)
@@ -44,8 +44,11 @@ def get_parallelism():
 
         last_json_data = json_data # set last_json_data after processing
 
-        print(f'action: {action}')
+        print(f'new action: {action}')
         return f'action: {action}'
+    else:
+        print('no new action')
+        return 'no action'
 
 def get_reward(json_data, sink_id):
     try:
@@ -130,9 +133,10 @@ def build_graph(json_data):
     '''
     try:
         data = json.loads(json_data)
-
+        print(f'data in build_graph: {data}')
         topology = data['jobTopology']
         new_graph = DirectedGraph(0)
+        print(f'new_graph: {new_graph}')
         for vertex_dict in topology['verticesInTopologicalOrder']:
             vertex_id = decode_vertex_bytes(vertex_dict['bytes'])
             new_graph.add_vertex(Vertex(vertex_id, 0, 0))
@@ -146,7 +150,7 @@ def build_graph(json_data):
                 to_vertex_bytes = to_vertex_dict['bytes']
                 to_vertex = new_graph.vertices[decode_vertex_bytes(to_vertex_bytes)]
                 new_graph.add_edge(from_vertex, to_vertex)
-        
+        print(f'finished graph: {new_graph}')
         return new_graph
 
     except Exception as e:
@@ -158,7 +162,7 @@ if __name__ == '__main__':
     last_json_data = None
     graph = None
     _q_learner = None
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5001) # , debug=True
 
     # while json_data is None:
     #     # Add a delay to avoid continuous checking

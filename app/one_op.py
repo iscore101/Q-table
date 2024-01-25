@@ -49,6 +49,8 @@ class q_learner:
 
         self.Q = np.zeros(q_tuple)
 
+        print("==> q_learner instantiated")
+
 
     def find_interval(self,max_value, num_partitions, value):
         #use find_interval outside this method when passing in states.
@@ -109,12 +111,15 @@ class q_learner:
 
                     #do something to reward??
 
-                    self.set_q_table(next_indexing, reward)
+                    # self.set_q_table(next_indexing, reward)
+                    self.Q[*next_indexing] = reward
                     #no recursion, update q value
+        
+        print("==> populating offline Q-table")
+
         #current indexing format: list of size self.dimension to max
         current_indexing = [0 for i in range(len(self.dimension_to_max_partition))]
         recursive_looper(current_indexing, 0)
-
 
         return self.Q
 
@@ -135,6 +140,7 @@ class q_learner:
 
 
     def online_generate_action(self,state):
+        print("==> generating action")
         #we seperate state and action (unlike with indexing during offline)
         state[0] = self.value_to_partition(self.num_partitions_input, self.max_input_rate, state[0])
         for i in range(self.num_operators):
@@ -165,7 +171,7 @@ class q_learner:
     #MAKE SURE TO CALL THIS IN BETWEEN CALLS TO online_generate_action
     def online_update_q_table(self, reward):
         #we index here by doing *(state+action)
-
+        print("==> updating q table")
         #this line should index by the state, then take max over the rest of the dimensions (the action dimensions)
         best_next_action_value = np.max(self.Q[(*self.next_state, ...)])
         #maybe this needs to be edited to make it explicitly a tuple of unpack + ...
@@ -176,7 +182,8 @@ class q_learner:
         value = (1 - self.alpha) * self.Q[tuple(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
 
 
-        self.set_q_table(self.state + self.last_action, value)
+        # self.set_q_table(self.state + self.last_action, value)
+        self.Q[tuple(self.state + self.last_action)] = value
         return self.Q
 
     #TODO: indexing whenever we update the q table (we need to be able to index by state, action pair), or call np.argmax

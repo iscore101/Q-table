@@ -4,6 +4,43 @@
 
 The installation only requires cloning into the desired location.
 
+## For local image:
+
+Navigate to `terraform-module-flink-cluster`, then run
+        
+    terraform init
+    (terraform validate)
+    (terraform plan)
+    terraform apply --auto-approve
+
+in `/k8s-cluster`, then in `/helm-charts`.
+
+Then, in `/Q-table`, run
+
+    docker build -f docker/Dockerfile -t scaling:vX .
+    kind load docker-image --name "flink-k8s-cluster" scaling:vX
+
+make sure `image` in `/Q-table/kubernetes/development.yaml` matches the `scaling:vX` you tagged the image with.
+
+To start the scaling pod in kubernetes, run
+
+    kubectl apply -f kubernetes/development.yaml
+
+Then, to start the flink job, run the terraform commands again in `terraform-module-flink-cluster/flink_job`.
+
+To stop the scaling pod, run
+
+    kubectl delete -f kubernetes/development.yaml
+
+To stop the flink job, run
+
+    terraform destroy --auto-approve
+
+in `flink-job`.
+
+To stop the cluster, run the same command in `helm-charts` and `k8s-cluster`, respectively.
+
+<!--
 ## Execution
 
 The Q-table repo is modeled after the hello-python example, so theoretically it can be run the same way, with the following relevant changes:
@@ -18,6 +55,7 @@ It may be necessary to change the arguments of `scaling.py` line 145, the constr
 
 I believe it would be best to run it on simple examples, e.g. source $\to$ sink, because the code is mostly for now designed for single source/sink and is largely untested.
 
-# How to run and how to stop
+## How to run and how to stop
 kubectl apply -f path of deployment.yaml
 kubectl delete -f path of deployment.yaml
+-->
