@@ -1,10 +1,6 @@
 # Q-table
 
-## Installation
-
-The installation only requires cloning into the desired location.
-
-## For local image:
+## Running
 
 Navigate to `terraform-module-flink-cluster`, then run
         
@@ -17,16 +13,29 @@ in `/k8s-cluster`, then in `/helm-charts`.
 
 Then, in `/Q-table`, run
 
+### For local image:
+
     docker build -f docker/Dockerfile -t scaling:vX .
+
     kind load docker-image --name "flink-k8s-cluster" scaling:vX
 
-make sure `image` in `/Q-table/kubernetes/development.yaml` matches the `scaling:vX` you tagged the image with.
+### For AWS image:
+
+    aws ecr-public get-login-password --region us-east-1 --profile brown | docker login --username AWS --password-stdin public.ecr.aws
+
+    docker buildx build --platform linux/amd64 --build-arg FLINK_VERSION=1.17.1 -t public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb01-v1.8 -f docker/Dockerfile .
+
+    docker push public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb01-v1.8
+
+and make sure `image` in `/Q-table/kubernetes/development.yaml` matches your most recent image tag.
 
 To start the scaling pod in kubernetes, run
 
     kubectl apply -f kubernetes/development.yaml
 
 Then, to start the flink job, run the terraform commands again in `terraform-module-flink-cluster/flink_job`.
+
+## Stopping
 
 To stop the scaling pod, run
 

@@ -8,9 +8,7 @@ import base64
 
 app = Flask(__name__)
 
-# @app.route('/', methods=['POST', 'GET'])
 @app.route('/metrics', methods=['POST']) 
-#def update_json_data():
 def receive_metrics():
     global json_data, graph, _q_learner
     print("===> receive_metrics is called")
@@ -22,15 +20,13 @@ def receive_metrics():
         graph = build_graph(json_data)
         print(f"===> graph `{graph}` built")
         _q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
-        _q_learner.populate_q_table_offline()
+        # _q_learner.populate_q_table_offline()
 
     print(f'===> json_data: {json_data}')
     return f'json_data: {json_data}'
 
-# @app.route('/', methods=['GET'])
 @app.route('/parallelisms', methods=['GET'])
-#def send_action():
-def get_parallelism():
+def send_action():
     global json_data, last_json_data, graph, _q_learner
     print("===> get_parallelism is called")
 
@@ -51,28 +47,20 @@ def get_parallelism():
         return 'no action'
 
 def get_reward(json_data, sink_id):
-    try:
         data = json.loads(json_data)
 
         all_metrics = data['metricHistory']
         latest_timestamp = max(all_metrics.keys())
-        latest_metrics = all_metrics[latest_timestamp]
+        sink_metrics = all_metrics[latest_timestamp]['vertexMetrics'][sink_id]
 
-        reward = latest_metrics[sink_id]['NUM_RECORDS_IN_PER_SECOND']
+        reward = sink_metrics['NUM_RECORDS_IN_PER_SECOND']
         return reward
 
-    except Exception as e:
-        print(f'Error: {e}')
-
 def get_parallelisms(json_data):
-    try:
         data = json.loads(json_data)
 
         parallelisms = data['jobTopology']['parallelisms']
         return parallelisms
-
-    except Exception as e:
-        print(f'Error: {e}')
 
 def get_latest_metrics(json_data, index_to_id_dict):
     '''
@@ -80,44 +68,47 @@ def get_latest_metrics(json_data, index_to_id_dict):
         state: (input_partitions, parralelism * num_operators,
             selectivity * num_operators, processing_rate * num_operators)
     '''
-    try:
-        data = json.loads(json_data)
+    data = json.loads(json_data)
 
-        # Check if metric history is populated
-        all_metrics = data['metricHistory']
-        if all_metrics is None:
-            raise ValueError('No metricHistory.')
+    # Check if metric history is populated
+    all_metrics = data['metricHistory']
+    if all_metrics is None:
+        raise ValueError('No metricHistory.')
 
-        latest_timestamp = max(all_metrics.keys())
-        latest_metrics = all_metrics[latest_timestamp]
+    latest_timestamp = max(all_metrics.keys())
+    vertex_metrics = all_metrics[latest_timestamp]['vertexMetrics']
+    print(f'vertex metrics:{vertex_metrics}')
 
-        state = np.zeros(1 + (3 * num_ops))
-        num_ops = len(latest_metrics)
-        for i in range(num_ops):
-            vertex_id = index_to_id_dict[i]
-            vertex_metrics = latest_metrics[vertex_id]
+    num_ops = len(vertex_metrics)
+    state = np.zeros(1 + (3 * num_ops))
+    for i in range(num_ops):
+        vertex_id = index_to_id_dict[i]
+        curr_vertex_metrics = vertex_metrics[vertex_id]
 
-            if 'SOURCE_DATA_RATE' in vertex_metrics: # source op
-                vertex_input_rate = vertex_metrics['SOURCE_DATA_RATE']
-                if vertex_input_rate == 'NaN':
-                    state[0] = 0
-                else:
-                    state[0] = vertex_input_rate
+        if 'SOURCE_DATA_RATE' in curr_vertex_metrics: # source op
+            vertex_input_rate = curr_vertex_metrics['SOURCE_DATA_RATE']
+            if vertex_input_rate == 'NaN':
+                state[0] = 0
+            else:
+                state[0] = vertex_input_rate
 
-            # vertex_input_rate = vertex_metrics['NUM_RECORDS_IN_PER_SECOND']
-            vertex_parallelism = get_parallelisms(data)[vertex_id]
-            vertex_output_rate = vertex_metrics['CURRENT_PROCESSING_RATE']
-            vertex_processing_rate = vertex_metrics['CURRENT_PROCESSING_RATE']
+        # vertex_input_rate = curr_vertex_metrics['NUM_RECORDS_IN_PER_SECOND']
+        vertex_parallelism = get_parallelisms(json_data)[vertex_id]
 
-            # state[0] = vertex_input_rate # weird indexing bc one_op(?)
-            state[i + 1] = vertex_parallelism
-            state[2 * (i + 1)] = vertex_output_rate / vertex_processing_rate
-            state[3 * (i + 1)] = vertex_processing_rate
+        vertex_output_rate = curr_vertex_metrics['NUM_RECORDS_OUT_PER_SECOND']
+        if vertex_output_rate == 'NaN':
+            vertex_output_rate = 0
 
-        return state
+        vertex_processing_rate = curr_vertex_metrics['CURRENT_PROCESSING_RATE']
+        if vertex_processing_rate == 0:
+            vertex_processing_rate = 1
 
-    except Exception as e:
-        print(f'Error: {e}')
+        # state[0] = vertex_input_rate # weird indexing bc one_op(?)
+        state[i + 1] = vertex_parallelism
+        state[num_ops + (i + 1)] = vertex_output_rate / vertex_processing_rate
+        state[2 * num_ops + (i + 1)] = vertex_processing_rate
+
+    return state
 
 def decode_vertex_bytes(vertex_bytes):
     ''' Decode the vertex ID from base64 to hexadecimal. '''
@@ -131,30 +122,32 @@ def build_graph(json_data):
         only used for consistent order of vertices
         and sink
     '''
-    try:
-        data = json.loads(json_data)
-        print(f'data in build_graph: {data}')
-        topology = data['jobTopology']
-        new_graph = DirectedGraph(0)
-        print(f'new_graph: {new_graph}')
-        for vertex_dict in topology['verticesInTopologicalOrder']:
-            vertex_id = decode_vertex_bytes(vertex_dict['bytes'])
-            new_graph.add_vertex(Vertex(vertex_id, 0, 0))
-        sorted_vertices = new_graph.topological_sort()
-        new_graph.set_source(new_graph.vertices[sorted_vertices[0]])
-        new_graph.set_sink(new_graph.vertices[sorted_vertices[-1]])
+    data = json.loads(json_data)
+    topology = data['jobTopology']
+    new_graph = DirectedGraph(0)
 
-        for from_vertex_name, to_vertices in topology['outputs'].items():
-            from_vertex = new_graph.vertices[from_vertex_name]
-            for to_vertex_dict in to_vertices:
-                to_vertex_bytes = to_vertex_dict['bytes']
-                to_vertex = new_graph.vertices[decode_vertex_bytes(to_vertex_bytes)]
-                new_graph.add_edge(from_vertex, to_vertex)
-        print(f'finished graph: {new_graph}')
-        return new_graph
+    sorted_vertices = []
+    for vertex_dict in topology['verticesInTopologicalOrder']:
+        vertex_id = decode_vertex_bytes(vertex_dict['bytes'])
+        vertex = Vertex(vertex_id, 0, 0)
+        sorted_vertices.append(vertex)
+        new_graph.add_vertex(vertex)
 
-    except Exception as e:
-        print(f'Error: {e}')
+    for from_vertex_name, to_vertices in topology['outputs'].items():
+        from_vertex = new_graph.vertices[from_vertex_name]
+        for to_vertex_dict in to_vertices:
+            to_vertex_bytes = to_vertex_dict['bytes']
+            to_vertex = new_graph.vertices[decode_vertex_bytes(to_vertex_bytes)]
+            new_graph.add_edge(from_vertex, to_vertex)
+
+    new_graph.set_source(sorted_vertices[0])
+    new_graph.set_sink(sorted_vertices[-1])
+    print(f'sv:{sorted_vertices}\nts:{new_graph.topological_sort()}')
+    # assert(sorted_vertices == new_graph.topological_sort()) # fails
+
+    print(f'finished graph: {new_graph}')
+    return new_graph
+
 
 if __name__ == '__main__':
     print("===> starting main")
@@ -163,36 +156,3 @@ if __name__ == '__main__':
     graph = None
     _q_learner = None
     app.run(host='0.0.0.0', port=5001) # , debug=True
-
-    # while json_data is None:
-    #     # Add a delay to avoid continuous checking
-    #     time.sleep(0.25)
-    # print("===> before graph in main")
-    # graph = build_graph(json_data)
-    # q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
-    # q_learner.populate_q_table_offline()
-
-    # last_json_data = None
-    # # while True:
-    # #     if json_data != last_json_data:
-    # #         print("===> Will compute new action")
-    # #         state = get_latest_metrics(json_data, graph.sorted_vertices)
-    # #         actions = q_learner.online_generate_action(state)
-    # #         action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
-    # #         action = action_dict # update global variable for get requesst
-    # #         reward = get_reward(graph.sink.name)
-    # #         q_learner.online_update_q_table(reward)
-
-    # #         last_json_data = json_data # Reset last_json_data after processing
-
-    # #     time.sleep(0.25) 
-    # if json_data != last_json_data:
-    #     print("===> Will compute new action")
-    #     state = get_latest_metrics(json_data, graph.sorted_vertices)
-    #     actions = q_learner.online_generate_action(state)
-    #     action_dict = {graph.sorted_vertices[i]: a for i, a in enumerate(actions)}
-    #     action = action_dict # update global variable for get requesst
-    #     reward = get_reward(graph.sink.name)
-    #     q_learner.online_update_q_table(reward)
-
-    #     last_json_data = json_data # Reset last_json_data after processing 
