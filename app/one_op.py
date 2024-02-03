@@ -13,7 +13,7 @@ import copy
 class q_learner:
     # q_learn = q_learner(3, 5, 5, 10, 5, 5, 5, 0.5, 0.5, 0)
     # q_learn = q_learner(3, 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph2)
-    def __init__(self, num_operators, max_parralelism, num_partitions_input, max_input_rate, num_partitions_selectivity, num_partitions_processing, max_processing_rate, alpha, gamma, QOS_output, graph):
+    def __init__(self, num_operators, max_parralelism, num_partitions_input, max_input_rate, num_partitions_selectivity, num_partitions_processing, max_processing_rate, alpha, gamma, epsilon, graph):
         self.num_operators = num_operators
         self.max_parralelism = max_parralelism
         self.num_partitions_input = num_partitions_input
@@ -27,7 +27,7 @@ class q_learner:
 
         self.alpha = alpha
         self.gamma = gamma
-        self.epsilon = 0.3 #TODO: add eps arg
+        self.epsilon = epsilon
 
         self.graph = graph
         #use find_interval(max_input_rate, num_partitions, input_rate) to find the partition number to index
@@ -51,6 +51,7 @@ class q_learner:
         self.Q = np.zeros(q_tuple)
         self.state = None
         self.next_state = None
+        self.last_action = None
 
         print("==> q_learner instantiated")
 
@@ -91,7 +92,11 @@ class q_learner:
 
     def value_to_partition(self, num_partitions, max_value, value):
         partition_size = max_value / num_partitions
-        return value // partition_size
+        partition = value // partition_size
+
+        if partition >= num_partitions:
+            partition = num_partitions - 1
+        return partition
 
     def populate_q_table_offline(self):
         #we call recursive looper if we need another nested loop
@@ -114,7 +119,6 @@ class q_learner:
 
                     #do something to reward??
 
-                    # self.set_q_table(next_indexing, reward)
                     self.Q[tuple(next_indexing)] = reward
                     #no recursion, update q value
         
@@ -125,9 +129,6 @@ class q_learner:
         recursive_looper(current_indexing, 0)
 
         return self.Q
-
-    # def set_q_table(self, indexing, set_value):
-    #     self.Q[tuple(indexing)] = set_value
 
 
     #given an action and curent state, find the next state
@@ -149,17 +150,16 @@ class q_learner:
         ind_state = np.zeros(state.shape)
         ind_state[0] = self.value_to_partition(self.num_partitions_input, self.max_input_rate, state[0])
         for i in range(self.num_operators):
-            ind_state[i + 1] = int(state[i + 1])
+            ind_state[i + 1] = int(state[i + 1]) - 1
             ind_state[self.num_operators + (i + 1)] = self.value_to_partition(self.num_partitions_selectivity, self.max_selectivity_rate, state[self.num_operators + (i + 1)])
             ind_state[2 * self.num_operators + (i + 1)] = self.value_to_partition(self.num_partitions_processing, self.max_processing_rate, state[2 * self.num_operators + (i + 1)])
 
-        print(f'ind_state: {ind_state}')
         ind_state = ind_state.astype(int)
-        print(f'ind_state (casted): {ind_state}')
+        print(f'ind_state: {ind_state}')
 
         # Epsilon-greedy action selection
         if random.uniform(0, 1) < self.epsilon:
-            action = [random.randint(0, self.max_parralelism) for _ in range(self.num_operators)]
+            ind_action = [random.randint(0, self.max_parralelism - 1) for _ in range(self.num_operators)]
         else:
             #index by ind_state, then argmax on the subarray
             subarray = self.Q[tuple(ind_state)]
@@ -167,13 +167,14 @@ class q_learner:
 
             # Convert the flattened index to multi-dimensional indices
             remaining_dim_indices = np.unravel_index(flattened_index, subarray.shape)
-            action = remaining_dim_indices.tolist()
-
+            ind_action = list(remaining_dim_indices)
+        print(f'==> ind_action: {ind_action}')
         # Get the next ind_state and reward
-        self.state = ind_state
-        self.next_state = self.get_next_state(ind_state, action)
-        #sends the action to the streaming system, which then comes back with the reward.
-        return action
+        self.state = list(ind_state)
+        self.next_state = list(self.get_next_state(ind_state, ind_action))
+        self.last_action = ind_action
+        # sends the action to the streaming system, which then comes back with the reward.
+        return [a + 1 for a in ind_action]
 
 
     #UNPACKS, ACTIONS NEED TO BE TESTED
@@ -187,11 +188,10 @@ class q_learner:
 
         # td_error = reward + self.gamma * best_next_action_value - self.Q[tuple((self.state) + self.last_action)]
         # self.Q[tuple((self.state) + self.last_action)] += self.alpha * td_error
-        # value = (1 - self.alpha) * self.Q[tuple((self.state) + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
+    
         value = (1 - self.alpha) * self.Q[tuple(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
-
-        # self.set_q_table(self.state + self.last_action, value)
         self.Q[tuple(self.state + self.last_action)] = value
+
         return self.Q
 
     #TODO: indexing whenever we update the q table (we need to be able to index by state, action pair), or call np.argmax

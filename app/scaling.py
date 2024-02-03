@@ -19,7 +19,7 @@ def receive_metrics():
         print("===> first-time init")
         graph = build_graph(json_data)
         print(f"===> graph `{graph}` built")
-        _q_learner = q_learner(len(graph.vertices), 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph)
+        _q_learner = q_learner(len(graph.vertices), 3, 3, 5000, 3, 3, 5000, 0.5, 0.5, 0.3, graph)
         # _q_learner.populate_q_table_offline()
 
     print(f'===> json_data: {json_data}')
@@ -101,7 +101,7 @@ def get_latest_metrics(json_data, index_to_id_dict):
 
         vertex_processing_rate = curr_vertex_metrics['CURRENT_PROCESSING_RATE']
         if vertex_processing_rate == 0:
-            vertex_processing_rate = 1
+            vertex_processing_rate = vertex_output_rate + 1
 
         # state[0] = vertex_input_rate # weird indexing bc one_op(?)
         state[i + 1] = vertex_parallelism

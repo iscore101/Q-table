@@ -23,9 +23,9 @@ Then, in `/Q-table`, run
 
     aws ecr-public get-login-password --region us-east-1 --profile brown | docker login --username AWS --password-stdin public.ecr.aws
 
-    docker buildx build --platform linux/amd64 --build-arg FLINK_VERSION=1.17.1 -t public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb01-v1.8 -f docker/Dockerfile .
+    docker buildx build --platform linux/amd64 --build-arg FLINK_VERSION=1.17.1 -t public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb03-v2 -f docker/Dockerfile .
 
-    docker push public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb01-v1.8
+    docker push public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb03-v2
 
 and make sure `image` in `/Q-table/kubernetes/development.yaml` matches your most recent image tag.
 
