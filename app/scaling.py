@@ -41,7 +41,7 @@ def send_action():
         last_json_data = json_data # set last_json_data after processing
 
         print(f'new action: {action}')
-        # return f'action: {action}'
+        # return f'action: {action}' -> we can use it for debugging.
         return action
     else:
         print('no new action')
