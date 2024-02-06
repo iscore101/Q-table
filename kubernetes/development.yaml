@@ -33,7 +33,7 @@ spec:
       containers:
       - name: scaling
         # image: scaling:v16.6
-        image: public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb03-v2
+        image: public.ecr.aws/m5r4d3y5/flink-jobs:q-table-feb05-v1
         # imagePullPolicy: Never
         imagePullPolicy: Always
         ports:
