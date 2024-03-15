@@ -41,8 +41,7 @@ def send_action():
         last_json_data = json_data # set last_json_data after processing
 
         print(f'new action: {action}')
-        # return f'action: {action}' -> we can use it for debugging.
-        return action
+        return f'action: {action}'
     else:
         print('no new action')
         return 'no action'
@@ -143,10 +142,8 @@ def build_graph(json_data):
 
     new_graph.set_source(sorted_vertices[0])
     new_graph.set_sink(sorted_vertices[-1])
-    print(f'sv:{sorted_vertices}\nts:{new_graph.topological_sort()}')
-    # assert(sorted_vertices == new_graph.topological_sort()) # fails
+    new_graph.topological_sort()
 
-    print(f'finished graph: {new_graph}')
     return new_graph
 
 

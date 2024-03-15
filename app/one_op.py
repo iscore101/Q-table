@@ -2,6 +2,7 @@ import numpy as np
 import random
 from modified_ds2 import Vertex
 from modified_ds2 import DirectedGraph
+import copy
 
 #make sure max_input_rate is divisible by num_partitions
 #we partition the max_input_rate into num_partitions number of intervals
@@ -9,10 +10,8 @@ from modified_ds2 import DirectedGraph
 #state: tuple: (input_rate, dictionary of parralelisms)
 #action: dictionary of parralelisms
 
-import copy
 class q_learner:
-    # q_learn = q_learner(3, 5, 5, 10, 5, 5, 5, 0.5, 0.5, 0)
-    # q_learn = q_learner(3, 3, 3, 3, 3, 3, 3, 0.5, 0.5, 0, graph2)
+
     def __init__(self, num_operators, max_parralelism, num_partitions_input, max_input_rate, num_partitions_selectivity, num_partitions_processing, max_processing_rate, alpha, gamma, epsilon, graph):
         self.num_operators = num_operators
         self.max_parralelism = max_parralelism
@@ -34,21 +33,20 @@ class q_learner:
         #the max values inputted must be divisible by the num_partitions
 
         # Initialize Q-table, with these dimensions:
-        #(input_partitions, parralelism * num_operators, selectivity * num_operators,
+        #(input_rate, parralelism * num_operators, selectivity * num_operators,
         # processing_rate * num_operators, action_parralelism * num_operators)
-        q_tuple = [self.num_partitions_input]
+        q_dims = [self.num_partitions_input]
         for i in range(num_operators):
-            q_tuple.append(self.max_parralelism)
+            q_dims.append(self.max_parralelism)
         for i in range(num_operators):
-            q_tuple.append(self.num_partitions_selectivity)
+            q_dims.append(self.num_partitions_selectivity)
         for i in range(num_operators):
-            q_tuple.append(self.num_partitions_processing)
+            q_dims.append(self.num_partitions_processing)
         for i in range(num_operators):
-            q_tuple.append(self.max_parralelism)
-        self.dimension_to_max_partition = copy.deepcopy(q_tuple)
-        q_tuple = tuple(q_tuple)
+            q_dims.append(self.max_parralelism)
+        self.dimension_to_max_partition = copy.deepcopy(q_dims)
 
-        self.Q = np.zeros(q_tuple)
+        self.Q = np.zeros(tuple(q_dims))
         self.state = None
         self.next_state = None
         self.last_action = None
@@ -143,7 +141,7 @@ class q_learner:
         #change this accordingly to how many metrics
 
 
-    def online_generate_action(self, state):
+    def online_generate_action(self, state, ds2=False):
         print("==> generating action")
         #we seperate state and action (unlike with indexing during offline)
 
@@ -158,16 +156,33 @@ class q_learner:
         print(f'ind_state: {ind_state}')
 
         # Epsilon-greedy action selection
-        if random.uniform(0, 1) < self.epsilon:
+        if ds2:
+            # override q-table stuff for raw ds2
+            all_parallelisms = np.array(np.meshgrid(*[range(self.max_parralelism)] * self.num_operators)).T.reshape(-1, self.num_operators)
+            input_and_parallelisms = np.concatenate((np.repeat([state[0]], len(all_parallelisms)).reshape(-1, 1), all_parallelisms), axis=1)
+            all_states = np.concatenate((input_and_parallelisms, np.repeat([state[1:self.num_operators+1]], len(input_and_parallelisms), axis=0)), axis=1)
+            ds2_values = np.apply_along_axis(self.graph.compute_output_rates_in_q_table, 1, all_states)
+            ind_action = all_parallelisms[np.argmax(ds2_values)] # for only ds2 (would be in separate case)
+        elif random.uniform(0, 1) < self.epsilon:
             ind_action = [random.randint(0, self.max_parralelism - 1) for _ in range(self.num_operators)]
         else:
+            # evaluate all ds2 for lazy
+            all_parallelisms = np.array(np.meshgrid(*[range(self.max_parralelism)] * self.num_operators)).T.reshape(-1, self.num_operators)
+            input_and_parallelisms = np.concatenate((np.repeat([state[0]], len(all_parallelisms)).reshape(-1, 1), all_parallelisms), axis=1)
+            all_states = np.concatenate((input_and_parallelisms, np.repeat([state[1:self.num_operators+1]], len(input_and_parallelisms), axis=0)), axis=1)
+            ds2_values = np.apply_along_axis(self.graph.compute_output_rates_in_q_table, 1, all_states)
+
             #index by ind_state, then argmax on the subarray
             subarray = self.Q[tuple(ind_state)]
-            flattened_index = np.argmax(subarray)
+            # elt-wise max ds2 and subarray
+            lazy_ds2 = np.where(subarray == 0, ds2_values, subarray)
+            flattened_index =  np.argmax(lazy_ds2)
 
+            # flattened_index = np.argmax(subarray)
             # Convert the flattened index to multi-dimensional indices
             remaining_dim_indices = np.unravel_index(flattened_index, subarray.shape)
             ind_action = list(remaining_dim_indices)
+
         print(f'==> ind_action: {ind_action}')
         # Get the next ind_state and reward
         self.state = list(ind_state)
@@ -191,6 +206,8 @@ class q_learner:
     
         value = (1 - self.alpha) * self.Q[tuple(self.state + self.last_action)] + self.alpha * (reward + self.gamma * best_next_action_value)
         self.Q[tuple(self.state + self.last_action)] = value
+
+            
 
         return self.Q
 
